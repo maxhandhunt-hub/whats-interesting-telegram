@@ -11,4 +11,6 @@ export async function call<T>(action:string,body:Record<string,unknown>={}):Prom
  if(!response.ok)throw new AppError(data.error?.code||'SERVER',data.error?.message||'Сервис временно недоступен.',response.status);
  return data as T;
 }
-export async function createJob(category:Category,prompt:string,requestId:string){return (await call<{job:Job}>('create',{category,prompt,requestId})).job;}
+export interface AccessState {id:string;status:'pending'|'approved'|'denied'|'expired';job_id?:string|null;error_message?:string|null;}
+export async function requestJob(category:Category,prompt:string,requestId:string){return await call<{job?:Job;access?:AccessState}>('create',{category,prompt,requestId});}
+export async function createJob(category:Category,prompt:string,requestId:string){const data=await requestJob(category,prompt,requestId);if(!data.job)throw new AppError('ACCESS_PENDING','Заявка отправлена владельцу. Дождитесь решения.');return data.job;}

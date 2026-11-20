@@ -4,7 +4,7 @@ async function hmac(key:Uint8Array,data:string){
  const imported=await crypto.subtle.importKey('raw',new Uint8Array(key),{name:'HMAC',hash:'SHA-256'},false,['sign']);
  return new Uint8Array(await crypto.subtle.sign('HMAC',imported,enc.encode(data)));
 }
-export async function verifyTelegram(initData:unknown,token:string,allowed:string,now=Math.floor(Date.now()/1000)){
+export async function verifyTelegramUser(initData:unknown,token:string,allowed:string,now=Math.floor(Date.now()/1000)){
  if(!token||!/^\d+$/.test(allowed))throw new AppError('CONFIG','Сервер не настроен: добавьте секреты Telegram в Supabase.',503);
  if(typeof initData!=='string'||!initData||initData.length>8192)throw new AppError('AUTH','Откройте приложение через кнопку меню Telegram-бота.',401);
  const params=new URLSearchParams(initData),seen=new Set<string>();
@@ -20,6 +20,11 @@ export async function verifyTelegram(initData:unknown,token:string,allowed:strin
  if(!Number.isInteger(date)||date<=0||now-date>3600||date-now>30)throw new AppError('EXPIRED','Авторизация истекла. Закройте Mini App и откройте его заново.',401);
  let user;try{user=JSON.parse(params.get('user')||'null');}catch{throw new AppError('AUTH','Некорректный пользователь Telegram.',401);}
  if(!user||!Number.isSafeInteger(user.id)||user.id<=0)throw new AppError('AUTH','Некорректный пользователь Telegram.',401);
- if(String(user.id)!==allowed)throw new AppError('FORBIDDEN','Эта тестовая версия доступна только владельцу бота.',403);
- return String(user.id);
+ return {id:String(user.id),first_name:String(user.first_name||'').slice(0,100),last_name:String(user.last_name||'').slice(0,100),username:String(user.username||'').slice(0,64)};
+}
+
+export async function verifyTelegram(initData:unknown,token:string,allowed:string,now=Math.floor(Date.now()/1000)){
+ const user=await verifyTelegramUser(initData,token,allowed,now);
+ if(user.id!==allowed)throw new AppError('FORBIDDEN','Доступ требует разрешения владельца бота.',403);
+ return user.id;
 }

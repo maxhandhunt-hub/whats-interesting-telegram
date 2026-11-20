@@ -1,5 +1,6 @@
+import {Access} from './access.ts';
 import {AppError,isUuid,parseCreate,type Job,type Answer} from '../../../shared/contracts.ts';
-import {verifyTelegram} from '../../../shared/auth.ts';
+import {verifyTelegramUser} from '../../../shared/auth.ts';
 import {fetchWeather} from '../../../shared/answers.ts';
 import {normalizeJob} from '../../../shared/jobs.ts';
 
@@ -13,7 +14,7 @@ function serverKey(){
 async function db(path:string,method='GET',body?:unknown){
  const url=env('SUPABASE_URL'),key=serverKey();
  if(!url||!key)throw new AppError('CONFIG','Подключение базы данных не настроено.',503);
- const r=await fetch(`${url}/rest/v1/${path}`,{method,headers:{apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(12000)});
+ const r=await fetch(`${url}/rest/v1/${path}`,{method,headers:{apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json',Prefer:'return=representation'+(path.includes('on_conflict=')?',resolution=merge-duplicates':'')},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(12000)});
  if(!r.ok)throw new AppError('DATABASE','База данных временно недоступна. Повторите запрос.',503);
  return r.status===204?null:await r.json();
 }
@@ -52,6 +53,7 @@ async function handleWorker(req:Request,body:Record<string,unknown>){
   const job=body.jobId?String(body.jobId):null,lease=body.lease?String(body.lease):null;
   if((job&&!isUuid(job))||(lease&&!isUuid(lease)))throw new AppError('WORKER_INPUT','Некорректная аренда задания.');
   await db('rpc/worker_ping','POST',{p_owner:owner,p_ready:body.ready===true,p_model:String(body.model||'').slice(0,100),p_job:job,p_lease:lease});
+  await access().configure();await access().flush();
   return {ok:true};
  }
  if(body.action==='worker_claim')return {job:await db('rpc/worker_claim','POST',{p_owner:owner})};
@@ -64,9 +66,27 @@ async function handleWorker(req:Request,body:Record<string,unknown>){
   }
   const accepted=await db('rpc/worker_finish','POST',{p_owner:owner,p_job:body.jobId,p_lease:body.lease,p_response:error?null:answer,p_error:error});
   if(!accepted)throw new AppError('LEASE','Аренда задания истекла или сменилась.',409);
+  try{await access().deliver(String(body.jobId));}catch{/* delivery resumes on heartbeat without another GPT call */}
   return {ok:true};
  }
  throw new AppError('ACTION','Неизвестное действие обработчика.');
+}
+function access(){return new Access(db,env('TELEGRAM_BOT_TOKEN'),env('ALLOWED_TELEGRAM_USER_ID'),env('SUPABASE_URL'),executeJob);}
+async function executeJob(owner:string,input:ReturnType<typeof parseCreate>,chat:boolean):Promise<Job>{
+ const reserved=await db('rpc/'+(input.category==='weather'?'begin_job':'begin_news_job'),'POST',{p_owner:owner,p_category:input.category,p_prompt:input.prompt,p_request_id:input.requestId});
+ if(reserved.error==='worker_offline')throw new AppError('WORKER_OFFLINE','Локальный обработчик недоступен. Владелец должен включить ноутбук и приложение.',503);
+ if(reserved.error==='queue_full')throw new AppError('QUEUE_FULL','Очередь занята. Дождитесь завершения предыдущих запросов.',429);
+ if(reserved.error==='rate_limit')throw new AppError('RATE_LIMIT','Достигнут лимит: 6 новых запросов в минуту или 100 за сутки.',429);
+ if(reserved.error==='conflict')throw new AppError('CONFLICT','Этот номер запроса уже использован с другим содержимым.',409);
+ const job=reserved.job as Job;
+ await db(`jobs?id=eq.${job.id}&owner_telegram_id=eq.${owner}`,'PATCH',{bot_id:await access().botId()});
+ if(chat)await db('chat_deliveries?on_conflict=job_id','POST',{job_id:job.id,chat_id:owner});
+ if(reserved.created&&input.category==='weather'){
+  try{const answer=await fetchWeather();await db('rpc/finish_job','POST',{p_owner:owner,p_job:job.id,p_response:answer,p_error:null});}
+  catch(error){await db('rpc/finish_job','POST',{p_owner:owner,p_job:job.id,p_response:null,p_error:error instanceof AppError?error.message:'Обработка запроса прервалась. Попробуйте ещё раз.'});}
+ }
+ if(chat){try{await access().deliver(job.id);}catch{/* retried by heartbeat */}}
+ return await getJob(owner,job.id);
 }
 export async function handler(req:Request):Promise<Response>{
  const origin=req.headers.get('origin');
@@ -79,34 +99,27 @@ export async function handler(req:Request):Promise<Response>{
  try{
   const body=await readBody(req);
   if(String(body.action).startsWith('worker_'))return reply(await handleWorker(req,body));
-  const owner=await verifyTelegram(body.initData,env('TELEGRAM_BOT_TOKEN'),env('ALLOWED_TELEGRAM_USER_ID'));
-  if(!['auth','create','status','history'].includes(String(body.action)))throw new AppError('ACTION','Неизвестное действие.');
+  if(new URL(req.url).searchParams.get('telegram')==='1'){await access().checkWebhook(req);await access().update(body);return reply({ok:true});}
+  const user=await verifyTelegramUser(body.initData,env('TELEGRAM_BOT_TOKEN'),env('ALLOWED_TELEGRAM_USER_ID')),owner=user.id;
+  if(!['auth','create','status','history','access_status'].includes(String(body.action)))throw new AppError('ACTION','Неизвестное действие.');
   const rate=await db('rpc/consume_request','POST',{p_owner:owner});
   if(!rate)throw new AppError('RATE_LIMIT','Слишком много обращений. Подождите минуту.',429);
-  if(body.action==='auth')return reply({authorized:true});
+  if(body.action==='access_status')return reply({access:await access().status(owner,String(body.accessId||''))});
+  const granted=await access().allowed(owner);
+  if(body.action==='auth'){if(owner===env('ALLOWED_TELEGRAM_USER_ID'))await access().configure();return reply({authorized:granted});}
+  if(body.action==='create'){
+   const input=parseCreate(body);
+   if(!granted)return reply({access:await access().request(user,input,'miniapp')});
+   return reply({job:await executeJob(owner,input,false)});
+  }
+  if(!granted)throw new AppError('FORBIDDEN','Сначала выберите раздел и дождитесь разрешения владельца.',403);
   if(body.action==='history'){
    await db('rpc/expire_jobs','POST',{p_owner:owner});
    const rows=await db(`jobs?owner_telegram_id=eq.${owner}&select=id,category,prompt,status,created_at,updated_at,completed_at,error_message,results(response_json)&order=created_at.desc&limit=50`);
    return reply({jobs:rows.map(normalizeJob).filter((job:Job)=>job.answer?.mode!=='demo')});
   }
   if(body.action==='status')return reply({job:await getJob(owner,String(body.jobId||''))});
-  const input=parseCreate(body);
-  const reserved=await db('rpc/'+(input.category==='weather'?'begin_job':'begin_news_job'),'POST',{p_owner:owner,p_category:input.category,p_prompt:input.prompt,p_request_id:input.requestId});
-  if(reserved.error==='worker_offline')throw new AppError('WORKER_OFFLINE','Локальный обработчик недоступен. Включите ноутбук, запустите приложение и проверьте вход ChatGPT.',503);
-  if(reserved.error==='queue_full')throw new AppError('QUEUE_FULL','Очередь занята. Дождитесь завершения предыдущих запросов.',429);
-  if(reserved.error==='rate_limit')throw new AppError('RATE_LIMIT','Достигнут лимит: 6 новых запросов в минуту или 100 за сутки.',429);
-  if(reserved.error==='conflict')throw new AppError('CONFLICT','Этот номер запроса уже использован с другим содержимым.',409);
-  const job=reserved.job as Job;
-  if(!reserved.created)return reply({job:await getJob(owner,job.id)});
-  if(input.category!=='weather')return reply({job:await getJob(owner,job.id)});
-  try{
-   const answer=await fetchWeather();
-   await db('rpc/finish_job','POST',{p_owner:owner,p_job:job.id,p_response:answer,p_error:null});
-  }catch(error){
-   const message=error instanceof AppError?error.message:'Обработка запроса прервалась. Попробуйте ещё раз.';
-   await db('rpc/finish_job','POST',{p_owner:owner,p_job:job.id,p_response:null,p_error:message});
-  }
-  return reply({job:await getJob(owner,job.id)});
+  throw new AppError('ACTION','Неизвестное действие.');
  }catch(error){
   const safe=error instanceof AppError?error:new AppError('UNAVAILABLE','Сервис временно недоступен. Попробуйте ещё раз.',503);
   // No request bodies, Telegram initData, credentials or raw exceptions in logs.
