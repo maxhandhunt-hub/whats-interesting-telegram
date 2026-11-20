@@ -1,0 +1,97 @@
+{
+  "tests": [
+    {
+      "test": "missing auth",
+      "status": 401,
+      "pass": true,
+      "error": "AUTH"
+    },
+    {
+      "test": "tampered signature",
+      "status": 401,
+      "pass": true,
+      "error": "AUTH"
+    },
+    {
+      "test": "other user",
+      "status": 403,
+      "pass": true,
+      "error": "FORBIDDEN"
+    },
+    {
+      "test": "expired",
+      "status": 401,
+      "pass": true,
+      "error": "EXPIRED"
+    },
+    {
+      "test": "wrong CORS origin",
+      "status": 403,
+      "pass": true,
+      "error": "ORIGIN"
+    },
+    {
+      "test": "valid signed request",
+      "status": 200,
+      "pass": true,
+      "error": null
+    },
+    {
+      "test": "create weather",
+      "status": 200,
+      "pass": true,
+      "error": null
+    },
+    {
+      "test": "create politics",
+      "status": 200,
+      "pass": true,
+      "error": null
+    },
+    {
+      "test": "create ai",
+      "status": 200,
+      "pass": true,
+      "error": null
+    },
+    {
+      "test": "idempotency retry",
+      "status": 200,
+      "pass": true,
+      "error": null
+    },
+    {
+      "test": "idempotency conflict",
+      "status": 409,
+      "pass": true,
+      "error": "CONFLICT"
+    },
+    {
+      "test": "create other",
+      "status": 200,
+      "pass": true,
+      "error": null
+    },
+    {
+      "test": "history",
+      "status": 200,
+      "pass": true,
+      "error": null
+    },
+    {
+      "test": "status",
+      "status": 200,
+      "pass": true,
+      "error": null
+    },
+    {
+      "test": "invalid category",
+      "status": 400,
+      "pass": true,
+      "error": "CATEGORY"
+    }
+  ],
+  "categories": 4,
+  "history_verified": true,
+  "note": "Real HTTPS; signatures generated locally with existing bot token. Telegram WebView test separate."
+}

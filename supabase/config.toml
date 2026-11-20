@@ -1,0 +1,6 @@
+project_id = "WhatsInteresting"
+
+[functions.telegram-app]
+# Telegram initData is not a Supabase JWT. handler verifies Telegram HMAC first.
+verify_jwt = false
+entrypoint = "./functions/telegram-app/index.ts"
