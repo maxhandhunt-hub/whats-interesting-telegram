@@ -1,0 +1,21 @@
+{
+  "oauth_scope_confirmed": true,
+  "api_key_used": false,
+  "public_responses_endpoint": true,
+  "plain_inference": "CHATGPT_PLAN_OK",
+  "web_search_verified_models": [
+    "gpt-6.2-sol",
+    "gpt-6-luna"
+  ],
+  "worker_model": "gpt-6-luna",
+  "typescript_tests": 20,
+  "python_tests": 17,
+  "verified_queue_categories": [
+    "politics",
+    "ai",
+    "other"
+  ],
+  "cache_hit_verified": true,
+  "exe_subsystem": "Windows GUI",
+  "future_plus_switch_not_yet_tested": true
+}

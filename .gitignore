@@ -11,3 +11,11 @@ test-results/
 .private/
 docs/evidence/
 *.tsbuildinfo
+__pycache__/
+*.pyc
+build/
+docs/phase2/*results*.json
+docs/phase2/queue-test-jobs.json
+*.bin
+*.key
+*.pem

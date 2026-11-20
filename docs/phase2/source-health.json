@@ -1,0 +1,67 @@
+[
+  {
+    "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "status": 200,
+    "today_count": 20
+  },
+  {
+    "url": "https://www.theguardian.com/world/rss",
+    "status": 200,
+    "today_count": 24
+  },
+  {
+    "url": "https://tass.ru/rss/v2.xml",
+    "status": 200,
+    "today_count": 100
+  },
+  {
+    "url": "https://news.un.org/feed/subscribe/en/news/all/rss.xml",
+    "status": 200,
+    "today_count": 0
+  },
+  {
+    "url": "https://openai.com/news/rss.xml",
+    "status": 200,
+    "today_count": 0
+  },
+  {
+    "url": "https://blog.google/technology/ai/rss/",
+    "status": 200,
+    "today_count": 0
+  },
+  {
+    "url": "https://www.microsoft.com/en-us/research/feed/",
+    "status": 200,
+    "today_count": 0
+  },
+  {
+    "url": "https://huggingface.co/blog/feed.xml",
+    "status": 200,
+    "today_count": 0
+  },
+  {
+    "url": "https://www.nasa.gov/feed/",
+    "status": 200,
+    "today_count": 2
+  },
+  {
+    "url": "https://www.sciencedaily.com/rss/top/science.xml",
+    "status": 200,
+    "today_count": 1
+  },
+  {
+    "url": "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+    "status": 200,
+    "today_count": 10
+  },
+  {
+    "url": "https://www.theguardian.com/culture/rss",
+    "status": 200,
+    "today_count": 0
+  },
+  {
+    "url": "https://www.theguardian.com/business/rss",
+    "status": 200,
+    "today_count": 1
+  }
+]

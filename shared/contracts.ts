@@ -2,8 +2,9 @@ export const categories=['weather','politics','ai','other'] as const;
 export type Category=typeof categories[number];
 export const names:Record<Category,string>={weather:'Погода',politics:'Политика',ai:'Нейросети',other:'Интересное'};
 export type Status='queued'|'processing'|'completed'|'failed';
-export interface Answer {title:string;mode:'live'|'demo';createdAt:string;body:string;items:{title:string;summary:string;details?:string}[];sources:{title:string;url:string}[];}
-export interface Job {id:string;category:Category;prompt:string;status:Status;created_at:string;updated_at:string;completed_at:string|null;error_message:string|null;answer?:Answer;}
+export interface Source {title:string;url:string;publishedAt?:string;}
+export interface Answer {title:string;mode:'live'|'demo'|'news';createdAt:string;body:string;items:{title:string;summary:string;details?:string;eventDate?:string|null;sources?:Source[]}[];sources:Source[];model?:string;cacheHit?:boolean;}
+export interface Job {id:string;category:Category;prompt:string;status:Status;created_at:string;updated_at:string;completed_at:string|null;error_message:string|null;answer?:Answer;worker_online?:boolean;}
 export class AppError extends Error {constructor(public code:string,message:string,public status=400){super(message);}}
 export function parseCreate(value:Record<string,unknown>){
  if(!categories.includes(value.category as Category))throw new AppError('CATEGORY','Выберите один из четырёх разделов.');
