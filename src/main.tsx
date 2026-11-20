@@ -33,7 +33,7 @@ function App(){
   const seq=++generation.current;
   const request=retry&&pending.current?pending.current:{category:c,prompt:text,id:crypto.randomUUID()};pending.current=request;
   try{
-   if(!authenticatedLaunch){setAnswer({...demoAnswer(c,text),body:'Демонстрационный режим вне Telegram. Здесь показан только интерфейс: запрос не отправлен в Supabase и не сохранён в защищённой истории. Для реальной погоды откройте приложение через кнопку меню бота.'});return;}
+   if(!authenticatedLaunch){const preview=demoAnswer(c,text);setAnswer({...preview,body:'Демонстрационный режим вне Telegram. Здесь показан только интерфейс: запрос не отправлен в Supabase и не сохранён в защищённой истории. Для реальной погоды откройте приложение через кнопку меню бота.',items:[preview.items[0],{title:'Как получить доступ',summary:'Откройте приложение через меню Telegram-бота.',details:'Доступ к реальной погоде, заданиям и личной истории подтверждается сервером по подписи Telegram. Этот просмотр ничего не сохраняет.'}]});return;}
    let current=await createJob(request.category,request.prompt,request.id);
    for(let i=0;(current.status==='queued'||current.status==='processing')&&i<15;i++){
     if(seq!==generation.current)return;setJob(current);await new Promise(resolve=>setTimeout(resolve,2000));
