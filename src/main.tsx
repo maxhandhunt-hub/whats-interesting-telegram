@@ -26,7 +26,7 @@ function App(){
  const [screen,setScreen]=useState<'home'|'result'|'history'>('home'),[category,setCategory]=useState<Category>('weather'),[prompt,setPrompt]=useState(''),[job,setJob]=useState<Job|null>(null),[answer,setAnswer]=useState<Answer|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[history,setHistory]=useState<Job[]>([]);
  const pending=useRef<{category:Category;prompt:string;id:string}|null>(null),lock=useRef(false),generation=useRef(0);
  const home=()=>{generation.current++;setScreen('home');setError('');setBusy(false);lock.current=false;};
- useEffect(()=>{const back=telegram?.BackButton;if(!back)return;if(screen==='home')back.hide();else back.show();back.onClick(home);return()=>back.offClick(home);},[screen]);
+ useEffect(()=>{const back=telegram?.BackButton;if(!authenticatedLaunch||!back||!telegram?.isVersionAtLeast?.('6.1'))return;if(screen==='home')back.hide();else back.show();back.onClick(home);return()=>back.offClick(home);},[screen]);
  async function run(c:Category,text:string,retry=false){
   if(lock.current)return;
   lock.current=true;setBusy(true);setError('');setCategory(c);setScreen('result');setAnswer(null);setJob(null);

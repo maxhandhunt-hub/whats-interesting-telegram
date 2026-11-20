@@ -1,4 +1,4 @@
-interface TelegramApp {initData:string;colorScheme:'light'|'dark';themeParams:Record<string,string>;ready():void;expand():void;onEvent(name:string,fn:()=>void):void;offEvent(name:string,fn:()=>void):void;BackButton?:{show():void;hide():void;onClick(fn:()=>void):void;offClick(fn:()=>void):void};}
+interface TelegramApp {initData:string;colorScheme:'light'|'dark';themeParams:Record<string,string>;ready():void;expand():void;isVersionAtLeast?(version:string):boolean;onEvent(name:string,fn:()=>void):void;offEvent(name:string,fn:()=>void):void;BackButton?:{show():void;hide():void;onClick(fn:()=>void):void;offClick(fn:()=>void):void};}
 declare global {interface Window{Telegram?:{WebApp:TelegramApp}}}
 export const telegram=window.Telegram?.WebApp;
 export function applyTheme(){
